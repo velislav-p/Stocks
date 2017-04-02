@@ -1,5 +1,5 @@
 # Stocks
-A small project developer for uni, based on a list of requirements. 
+A small project developed for uni, based on a list of requirements. 
 
 It is built as a single page app without using any frameworks. 
 It simulates a perpetual stream of stock prices and presents the changes visually.
