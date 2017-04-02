@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>
+        &#36tocks
+    </title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css">
+    <link rel="stylesheet" href="styles/style.css">
+
+</head>
+<body>
+
+<!------------------------------------------ LOGIN ------------------------------------------------>
+<div id="wdw-login" class="wdw">
+    <h1>&#36tocks</h1>
+    <input class="form-group" id="userName" name="username" type="text" placeholder = "admin or user">
+    <input class="form-group" id="userPassword" name="password" type="password" placeholder = "1">
+    <input class="btn btn-primary center-block form-group" id="btn-login" type="submit" value="Log in">
+    <div id="login-error-msg" class="error-msg" ></div>
+</div>
+<!----------------------------------------- NAV BAR ------------------------------------------>
+<nav class="navbar navbar-inverse">
+    <h1>&#36tocks</h1>
+    <div id="navbar-right">
+        <div id="compare-container">
+            <input class="btn btn-primary center-block form group" type="submit" value="Compare stocks" id="btn-compare">
+            <div class="badge badge-notify"></div>
+        </div>
+        <span id="welcome-msg"></span>
+        <input id="btn-logout" type="submit" value="[Logout]">
+    </div>
+</nav>
+
+<!------------------------------------------ DASHBOARD ---------------------------------------------->
+<div  id="wdw-dashboard" class="wdw">
+    <div class="col-md-6 overlay" id="wdw-stock-compare-wrapper">
+        <i class="fa fa-times"  aria-hidden="true"></i>
+        <div id="wdw-stock-compare">
+        <table id="compare-stocks" class="table table-striped">
+            <thead id="compare-stock-names">
+            <tr>
+                <th>NAME</th>
+                <th>PRICE</th>
+                <th>CLOSE</th>
+                <th>OPEN</th>
+                <th>VOLUME</th>
+                <th>CAP</th>
+                <th>EPS</th>
+                <th>P/E</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <div id="compare-canvas-container"></div>
+        </div>
+    </div>
+    <div class="col-md-6" id="wdw-container-products-wrapper">
+        <div id="products-title-bar">
+            <input id="chk-select-all" type="checkbox" class="checkbox">
+            <span>Name</span>
+            <span>Price</span>
+            <span>Price change</span>
+        </div>
+        <div class="col-md-12" id="wdw-container-products"></div>
+    </div>
+
+    <div class="col-md-3 overlay" id="wdw-stock-info-wrapper">
+        <i class="fa fa-times"  aria-hidden="true"></i>
+        <div id="wdw-stock-info"></div>
+    </div>
+    <div class="col-md-3 partial" id="wdw-news-feed">
+    </div>
+    <div class="col-md-3 partial" id="wdw-admin-control-panel">
+        <label for="lbl-product-name">Product name</label>
+        <input class="form-group" id="lbl-product-name" type="text" placeholder="Product name" required>
+        <label for="lbl-product-price">Product price</label>
+        <input class="form-group" id="lbl-product-price" type="text" placeholder="Product price" required>
+        <label for="lbl-product-icon">Product icon</label>
+        <input class="form-group" id="lbl-product-icon" type="url" placeholder="Product icon link">
+        <span id="save-delete-error-msg" class="error-msg"></span>
+        <div id="save-delete-buttons">
+        <input class="btn btn-primary" id="btn-save-product" type="submit" value="Save product">
+        <input class="btn btn-danger" id="btn-delete-product" type="submit" value="Delete product">
+        </div>
+    </div>
+</div>
+
+<!------------------------------- LIBRARIES ------------------------------------------------------------>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="libraries/smoothieChart/canvasjs.min.js"></script>
+<script src="libraries/smoothieChart/jquery.canvasjs.min.js"></script>
+<script src="libraries/smoothieChart/smoothie.js"></script>
+
+
+<!--------------------------------------- SCRIPT -------------------------------------------------------->
+<script type="text/javascript">
+
+    /*---------------------------------------------- TEMPLATES ---------------------------------------------*/
+    var sProductTemplate =
+            '<div id="{{product-id}}" class="product"> \
+            <input data-id="{{product-id-checkbox}}" class="checkbox" type="checkbox">\
+            <span class="product-name">{{product-name}}</span>\
+            <span class="product-price">{{product-price}}</span>\
+            <span class="product-price-change"></span>\
+            </div>';
+    /*-----------------------------------------------------------------------------------------------------*/
+    var sProductInfoTemplate =
+            '<div class="row">\
+            <div class="img-container">\
+            <img class="product-icon" src="{{product-icon}}">\
+            </div>\
+            <span class="product-name">{{product-name}}</span>\
+            </div>\
+            <div class="row" id="info-canvas-container">\
+            </div>\
+            <div class="row">\
+            <table class="table table-striped">\
+            \
+            <tbody>\
+            <tr>\
+            <th>PRICE</th>\
+            <td>{{product-price}}</td>\
+            </tr>\
+            <tr>\
+            <th>PREV CLOSE</th>\
+            <td>{{product-info-prevClose}}</td>\
+            </tr>\
+            <tr>\
+            <th>OPEN</th>\
+            <td>{{product-info-open}}</td>\
+            </tr>\
+            <tr>\
+            <th>VOLUME</th>\
+            <td>{{product-info-volume}}</td>\
+            </tr>\
+            <tr>\
+            <th>MARKET CAP</th>\
+            <td>{{product-info-marketCap}}</td>\
+            </tr>\
+            <tr>\
+            <th>EPS</th>\
+            <td>{{product-info-eps}}</td>\
+            </tr>\
+            <tr>\
+            <th>P/E</th>\
+            <td>{{product-info-pe}}</td>\
+            </tr>\
+            </tbody>\
+            </div>\
+            </div>\
+            </div>';
+
+    /*-----------------------------------------------------------------------------------------------------*/
+    var sArticleTemplate =
+            '<div class="article">\
+            <h1 class="article-title">{{article-title}}</h1>\
+            <h3>{{article-description}}</h3>\
+            </div>';
+
+    /*---------------------------------------- GLOBAL DECLARATIONS -----------------------------------------*/
+    var aProductsIds = [];
+    var ajProducts = [];
+
+
+    /*---------------------------------------- FUNCTIONS --------------------------------------------------*/
+    /*-------------------- NOTIFICATIONS -----------------------*/
+//    function notifyMe(companyName, stockPrice) {
+//
+//        if (!("Notification" in window)) {
+//            alert("This browser does not support desktop notification");
+//        }
+//        else if (Notification.permission == "granted") {
+//            var notification = new Notification("Attention! "+companyName+"'s price just changed by "+stockPrice.toFixed(2));
+//            var audio = new Audio("audio/notification.mp3");
+//            audio.play();
+//        }
+//        else if (Notification.permission !== 'denied') {
+//            Notification.requestPermission(function (permission) {
+//                if (permission == "granted") {
+//                    var notification = new Notification("Hi there!");
+//                }
+//            });
+//        }
+//    }
+
+    /*---------------------------------------- ON PAGE LOAD -----------------------------------------*/
+    var ajGetProducts;
+    /*-------------------- IS THE USER LOGGED IN? -----------------------*/
+    var user = {};
+    $.ajax({
+        "url":"services/service-is-user-logged.php",
+        "method":"get",
+        "dataType":"JSON",
+        "cache":false
+    }).done(function(jData){
+        user = jData;
+        if (jData.status == "error"){
+            $("#wdw-login").css("display","flex");
+        } else {
+            $(".wdw").hide();
+            $(".navbar").css("display","flex");
+            $("#welcome-msg").text("Welcome, "+jData.username);
+            $("#wdw-dashboard").css("display","flex");
+            fetchFromLocalStorage();
+            ajGetProducts  = setInterval(function(){ getProducts(); }, 5000);
+            if (jData.rights =="admin"){
+                $("#wdw-admin-control-panel").css("display","flex");
+                existingProduct={};
+                $("#lbl-product-name").val("");
+                $("#lbl-product-price").val("");
+                $("#lbl-product-icon").val("");
+            } else if (jData.rights == "user"){
+                $("#wdw-news-feed").css("display", "flex");
+                displayArticles();
+            }
+        }
+    });
+
+    /*------------------------------------------ LOGIN ----------------------------------------*/
+
+    $("#btn-login").click(function(){
+        var userName = $("#userName").val();
+        var password = $("#userPassword").val();
+
+        if (userName == "" && password == ""){
+            $("#login-error-msg").text("Please fill out the fields");
+        } else {
+            $.ajax({
+                "url":"services/service-login.php",
+                "method":"get",
+                "data":{"username":userName, "password":password},
+                "dataType":"JSON",
+                "cache":false
+            }).done(function(jData){
+                user = jData[0];
+                if(jData.status == "error"){
+                    $("#login-error-msg").text("Unknown user or wrong password");
+                }else {
+                    $(".wdw").hide();
+                    $(".partial").hide();
+                    $("#login-error-msg").empty();
+                    if(user.rights == "admin"){
+                        $("#wdw-admin-control-panel").css("display","flex");
+                    } else if (user.rights == "user"){
+                        $("#wdw-news-feed").css("display","flex");
+                        getNewsFromApi();
+                    }
+                    $("input:text").val("");
+                    $("input:password").val("");
+                    $(".navbar").css("display","flex");
+                    $("#welcome-msg").text("Welcome, "+user.username);
+                    $("#wdw-dashboard").css("display","flex");
+                    ajProducts = jData[1];
+                    displayProducts();
+                    ajGetProducts  = setInterval(function(){ getProducts(); }, 5000);
+                }
+            })
+        }
+
+    });
+
+    /*------------------------------------------ GETTING THE PRODUCTS ----------------------------------------*/
+    function getProducts(){
+        $.ajax({
+            "url":"services/service-get-products.php",
+            "method":"post",
+            "dataType":"json",
+            "cache":false
+        }).done(function(ajProductsFromServer){
+            $(".loading").css("display", "none");
+            if (ajProducts.length > 0){
+                ajProducts.forEach(function(productInMemory){
+                    ajProductsFromServer.forEach(function(productFromServer){
+                        if (productInMemory.id == productFromServer.id){
+                            productInMemory.price = productFromServer.price;
+                            productInMemory.name = productFromServer.name;
+                            productInMemory.icon = productFromServer.icon;
+                            productInMemory.info = productFromServer.info;
+                        }
+                    })
+                })
+            } else {
+                ajProducts = ajProductsFromServer;
+            }
+            aProductsIds=[];
+
+            var asProducts = JSON.stringify(ajProducts);
+            localStorage.sProducts = asProducts;
+
+            displayProducts();
+
+        }).fail(function(errorData){
+            console.log(errorData);
+            fetchFromLocalStorage();
+        });
+    }
+
+    /*------------------------------------------ DISPLAYING THE PRODUCTS ----------------------------------------*/
+    function displayProducts() {
+        ajProducts.forEach(function (jProduct) {
+
+            var sProductId = jProduct.id;
+            var sProductName = jProduct.name;
+            var sProductPrice = jProduct.price;
+            var sProductIcon = jProduct.icon;
+            aProductsIds.push(sProductId);
+
+            if ($("#" + sProductId).length == 0) {
+                var sTempProduct = sProductTemplate;
+                sTempProduct = sTempProduct.replace("{{product-id}}", sProductId);
+                sTempProduct = sTempProduct.replace("{{product-id-checkbox}}", sProductId);
+                sTempProduct = sTempProduct.replace("{{product-icon}}", sProductIcon);
+                sTempProduct = sTempProduct.replace("{{product-name}}", sProductName);
+                sTempProduct = sTempProduct.replace("{{product-price}}", sProductPrice);
+                $("#wdw-container-products").append(sTempProduct);
+            } else {
+                var sPriceInDom = $("#" + sProductId + " .product-price").text();
+                var iPriceDifference = (sProductPrice - sPriceInDom);
+                if (sPriceInDom > sProductPrice)
+                {
+                    $("#" + sProductId + " .fa-arrow-down").css("display", "inline-block");
+                    $("#" + sProductId + " .fa-arrow-up").css("display", "none");
+                    $("#" + sProductId + " .product-price-change").css("background-color", "#f44336");
+                    $("#" + sProductId + " .product-price-change").text(Math.abs((sPriceInDom - sProductPrice)/sProductPrice*100).toFixed(1)+"%");
+                    if (sPriceInDom >= sProductPrice + 1){
+                       notifyMe($("#" + sProductId + " .product-name").text(), iPriceDifference)
+                    }
+                }
+                if (sPriceInDom < sProductPrice)
+                {
+                    $("#" + sProductId + " .fa-arrow-down").css("display", "none");
+                    $("#" + sProductId + " .fa-arrow-up").css("display", "inline-block");
+                    $("#" + sProductId + " .product-price-change").css("background-color", "#00c853");
+                    $("#" + sProductId + " .product-price-change").text(Math.abs((sPriceInDom - sProductPrice)/sPriceInDom*100).toFixed(1)+"%");
+                    if (sPriceInDom <= sProductPrice - 1){
+                        notifyMe($("#" + sProductId + " .product-name").text(), iPriceDifference)
+                    }
+                }
+                $("#" + sProductId + " .product-price").text(sProductPrice);
+                $("#" + sProductId + " .product-name").text(sProductName);
+                $("#" + sProductId + " .product-icon").attr("src", sProductIcon);
+            }
+        });
+
+    }
+
+    /*------------------------------------------- GETTING ARTICLES FROM API -------------------------------------------------------*/
+
+    function getNewsFromApi(){
+        $.ajax({
+            "url":"services/service-get-news-from-API.php",
+            "method":"get",
+            "dataType":"json",
+            "cache":false
+        }).done(function(apiData){
+            if (apiData.status == "ok"){
+                var asArticles = JSON.stringify(apiData.articles);
+                localStorage.sArticles = asArticles;
+                displayArticles();
+            }
+        });
+
+    }
+    /*------------------------------------------- DISPLAYING ARTICLES -------------------------------------------------------*/
+    function displayArticles(){
+        if(localStorage.sArticles){
+            var ajArticles = JSON.parse(localStorage.sArticles);
+            ajArticles.forEach(function(jArticle){
+                var sTempArticle = sArticleTemplate;
+                sTempArticle = sTempArticle.replace("{{article-title}}", jArticle.title);
+                sTempArticle = sTempArticle.replace("{{article-description}}", jArticle.description);
+                $("#wdw-news-feed").append(sTempArticle);
+            });
+        }
+        $(document).on("click",".article",function(){
+            var sArticleTitle = $(this).find(".article-title").text();
+            ajArticles.forEach(function(jArticle){
+                if (sArticleTitle == jArticle.title){
+                    window.location.href = jArticle.url;
+                }
+            })
+        });
+    }
+
+    /*----------------------------------------------- CHECKBOXES -------------------------------------------------------*/
+
+    var checked = 0;
+    $(document).on("click", "input[type=checkbox]:not(#chk-select-all)", function(){
+        var checkbox = $(this).attr("data-id");
+        if($(this).is(":checked")) {
+            checked++;
+            ajProducts.forEach(function(jProduct) {
+                if (checkbox == jProduct.id) {
+                    jProduct.checked = true;
+                    console.log(ajProducts);
+                }
+            })
+        } else {
+            checked--;
+            ajProducts.forEach(function(jProduct) {
+                if (checkbox == jProduct.id) {
+                    jProduct.checked = false;
+                }
+            })
+        }
+        $(".badge-notify").text(checked);
+        if (checked <= 0){
+            $(".badge-notify").empty();
+        }
+    });
+    $("#chk-select-all").click(function(){
+       if (this.checked){
+           ajProducts.forEach(function(jProduct){
+               jProduct.checked=true;
+           });
+           $(':checkbox:not(#chk-select-all)').each(function() {
+               if(!this.checked) {
+                   this.checked = true;
+                   checked++;
+               }
+           });
+       } else {
+           checked=0;
+           ajProducts.forEach(function(jProduct){
+               jProduct.checked=false;
+           });
+           $(':checkbox:not(#chk-select-all)').each(function() {
+               this.checked = false;
+           });
+       }
+        $(".badge-notify").text(checked);
+        if (checked <= 0){
+            $(".badge-notify").empty();
+        }
+        console.log(ajProducts);
+    });
+    /*---------------------------------------------- COMPARING PRODUCTS  --------------------------------------------------------*/
+
+    $("#btn-compare").click(function(){
+        if(!checked <= 0){
+            $("#wdw-container-products-wrapper").css("display", "none");
+            $("tr[data-id]").remove();
+            $("#compare-canvas-container").empty();
+            $(".compare-product-name").remove();
+            ajProducts.forEach(function(jProduct){
+                if(jProduct.checked){
+                    $("#wdw-stock-compare-wrapper").css("display","flex");
+                    $("#compare-stocks tbody").append("<tr data-id="+jProduct.id+"><th>"+jProduct.name+"</th><td>"+jProduct.price+"</td><td>"+jProduct.info.prevClose+"</td><td>"+jProduct.info.open+"</td><td>"+jProduct.info.volume+"</td><td>"+jProduct.info.marketCap+"</td><td>"+jProduct.info.eps+"</td><td>"+jProduct.info.pe+"</td></tr>");
+                    $("tr[data-id="+jProduct.id+"]").css("color",jProduct.color);
+                }
+            });
+            var canv = document.createElement("canvas");
+            canv.id = "compare-canvas";
+            document.getElementById("compare-canvas-container").appendChild(canv);
+            var smoothie = new SmoothieChart({millisPerPixel:72});
+            smoothie.streamTo(document.getElementById("compare-canvas"), 2000 /*delay*/);
+
+            ajProducts.forEach(function(jProduct, iIndex){
+                if(jProduct.checked == true){
+                    eval('var line'+iIndex+' = new TimeSeries();');
+                    var oLine = eval('line'+iIndex);
+                    smoothie.addTimeSeries(oLine, { strokeStyle:ajProducts[iIndex].color, lineWidth:3 });
+                    setInterval(function(){
+                        eval ('line'+iIndex+'.append(new Date().getTime(), '+jProduct.price+')')
+                    }, 1000);
+                }
+            });
+        }
+    });
+
+    /*---------------------------------------- DISPLAYING PRODUCT INFO  or  SENDING PRODUCT TO SAVE/EDIT FORM -----------------------------------------------*/
+    var existingProduct = {};
+
+    $(document).on("click", ".product", function (e) {
+        if (user.rights == "user" && !$(e.target).is("input[type=checkbox]")) {
+            $("#wdw-stock-info").empty();
+            console.log($(e.target));
+            var productId = $(this).attr("id");
+
+            ajProducts.forEach(function (jProduct) {
+                if (jProduct.id == productId) {
+                    console.log(jProduct.info);
+                    var sTempProduct = sProductInfoTemplate;
+                    sTempProduct = sTempProduct.replace("{{product-name}}", jProduct.name);
+                    sTempProduct = sTempProduct.replace("{{product-price}}", jProduct.price);
+                    sTempProduct = sTempProduct.replace("{{product-info-prevClose}}", jProduct.info.prevClose);
+                    sTempProduct = sTempProduct.replace("{{product-info-open}}", jProduct.info.open);
+                    sTempProduct = sTempProduct.replace("{{product-info-volume}}", jProduct.info.volume);
+                    sTempProduct = sTempProduct.replace("{{product-info-marketCap}}", jProduct.info.marketCap);
+                    sTempProduct = sTempProduct.replace("{{product-info-eps}}", jProduct.info.eps);
+                    sTempProduct = sTempProduct.replace("{{product-info-pe}}", jProduct.info.pe);
+                    sTempProduct = sTempProduct.replace("{{product-icon}}", jProduct.icon);
+                    $("#wdw-stock-info-wrapper").css("display", "flex");
+                    $("#wdw-news-feed").css("display", "none");
+                    $("#wdw-stock-info").append(sTempProduct);
+
+                    var canv = document.createElement("canvas");
+                    canv.id = "mycanvas";
+                    document.getElementById("info-canvas-container").appendChild(canv);
+                    var smoothie = new SmoothieChart({millisPerPixel: 72});
+                    smoothie.streamTo(document.getElementById("mycanvas"), 2000 /*delay*/);
+                    var line1 = new TimeSeries();
+
+                    setInterval(function () {
+                        ajProducts.forEach(function (product) {
+                            if (product.id == productId) {
+                                line1.append(new Date().getTime(), product.price);
+                            }
+                        })
+                    }, 1000);
+                    smoothie.addTimeSeries(line1);
+                }
+            })
+        }else if (user.rights == "admin" && !$(e.target).is("input[type=checkbox]")){
+            var productId = $(this).attr("id");
+            var productName = $(this).find(".product-name").text();
+            var productPrice = $(this).find(".product-price").text();
+            var productIcon ="";
+
+            ajProducts.forEach(function(jProduct){
+                if (productId == jProduct.id){
+                    productIcon = jProduct.icon;
+                }
+            });
+
+            existingProduct.id      = productId;
+            existingProduct.name    = productName;
+            existingProduct.price   = productPrice;
+            existingProduct.icon    = productIcon;
+
+           console.log(existingProduct);
+
+            $("#lbl-product-name").val(existingProduct.name);
+            $("#lbl-product-price").val(existingProduct.price);
+            $("#lbl-product-icon").val(existingProduct.icon);
+        }
+    });
+
+
+    /*------------------------------ CLOSING WINDOWS WITH "X" ICON ----------------------------------------*/
+    $(document).on("click", ".fa-times", function(){
+        switch($(this).parent().attr("id"))
+        {
+            case "wdw-stock-info-wrapper":
+                $("#wdw-stock-info-wrapper").css("display","none");
+                $("#wdw-news-feed").css("display","flex");
+                break;
+
+            case "wdw-stock-compare-wrapper":
+                $("#wdw-stock-compare-wrapper").css("display","none");
+                $("#wdw-container-products-wrapper").css("display","block");
+                break;
+
+            default:
+                return true;
+        }
+    });
+
+    /*------------------------------------------ SAVING A PRODUCTS ----------------------------------------*/
+    $("#btn-save-product").click(function () {
+
+        var productName  = $("#lbl-product-name").val();
+        var productPrice = $("#lbl-product-price").val();
+        var productIcon  = $("#lbl-product-icon").val();
+
+        if (!productName || !productPrice || !productIcon){
+            $("#save-delete-error-msg").text("Please fill out all the fields");
+        } else {
+            $.ajax({
+                "url":"services/service-save-product.php",
+                "method":"post",
+                "dataType":"json",
+                "data":{"productId":existingProduct.id,"productName":productName,"productPrice":productPrice,"productIcon":productIcon},
+                "cache":false
+            }).done(function(jResponse){
+                console.log(jResponse);
+                if (jResponse[0].status == "ok" && jResponse[0].product == "updated"){
+                    $("#" + existingProduct.id + " .product-price").text(productPrice);
+                    $("#" + existingProduct.id + " .product-name").text(productName);
+                    $("#" + existingProduct.id + " .product-icon").attr("src", productIcon);
+                    existingProduct = {};
+                } else if (jResponse[0].status == "ok" && jResponse[0].product == "created"){
+                    console.log(jResponse[1]);
+                    var sTempProduct = sProductTemplate;
+                    sTempProduct = sTempProduct.replace("{{product-id}}", jResponse[1].id);
+                    sTempProduct = sTempProduct.replace("{{product-id-checkbox}}", jResponse[1].id);
+                    sTempProduct = sTempProduct.replace("{{product-name}}", jResponse[1].name);
+                    sTempProduct = sTempProduct.replace("{{product-price}}", jResponse[1].price);
+                    $("#wdw-container-products").append(sTempProduct);
+                    ajProducts.push(jResponse[1]);
+                }
+            }).fail(function(jData){
+                console.log(jData);
+            });
+
+            $("#lbl-product-name").val("");
+            $("#lbl-product-price").val("");
+            $("#lbl-product-icon").val("");
+        }
+    });
+
+    /*------------------------------------------ Deleting a product ----------------------------------------*/
+    $("#btn-delete-product").click(function () {
+        $.ajax({
+            "url":"services/service-delete-product.php",
+            "method":"post",
+            "dataType":"json",
+            "data":{"productId":existingProduct.id},
+            "cache":false
+        }).done(function(jResponse){
+            if (jResponse.status == "ok"){
+                for (var i=0; i<ajProducts.length; i++){
+                    if (ajProducts[i].id == existingProduct.id){
+                        ajProducts.splice(i, 1);
+                    } else {
+                        console.log("no product found");
+                    }
+                }
+                $("#" + existingProduct.id).fadeOut(500);
+                $("#lbl-product-name").val("");
+                $("#lbl-product-price").val("");
+                $("#lbl-product-icon").val("");
+
+                existingProduct = {};
+            }
+        });
+    });
+
+    /*------------------------------------------ LOGOUT ----------------------------------------*/
+    $("#btn-logout").click(function(){
+        var sApiLogout = "services/service-logout.php";
+        $.get(sApiLogout, function(){
+            $(".wdw").hide();
+            $(".overlay").hide();
+            $(".navbar").css("display","none");
+            $("#wdw-login").css("display", "flex");
+            $("#wdw-container-products").empty();
+            aCheckedItems=[];
+            aProductsIds = [];
+            ajProducts = [];
+            user = {};
+            checked=0;
+            clearInterval(ajGetProducts);
+            $(".badge-notify").empty();
+            localStorage.clear();
+        })
+    });
+    /*------------------------------------------ Fetching products from local storage ----------------------------------------*/
+    function fetchFromLocalStorage(){
+        if (localStorage.sProducts){
+            var sProductsFromLocalStorage = localStorage.sProducts;
+            ajProducts = JSON.parse(sProductsFromLocalStorage);
+            ajProducts.forEach(function(jProduct){
+                jProduct.checked=false;
+            });
+            displayProducts();
+        }
+    }
+
+</script>
+
+</body>
+</html>
+
+
